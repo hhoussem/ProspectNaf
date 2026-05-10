@@ -14,106 +14,41 @@ Implémentation du MVP ProspectNAF en Next.js 14 (App Router) + TypeScript + Pri
   - Créer les fichiers de types partagés (`types/company.ts`, `types/plan.ts`)
   - _Requirements: tous_
 
-- [ ] 2. Authentification
-  - [ ] 2.1 Configurer NextAuth.js v5 avec le provider Credentials et PrismaAdapter
-    - Implémenter `lib/auth.ts` avec JWT strategy, callbacks plan/searchesToday
-    - Implémenter le middleware de protection des routes (`middleware.ts`)
-    - _Requirements: 1.4_
-  - [ ] 2.2 Implémenter l'inscription (`POST /api/auth/register`)
-    - Validation Zod (email format, password complexity)
-    - Hash bcrypt (rounds=12), création User en base
-    - Envoi email de confirmation via Resend
-    - _Requirements: 1.1, 1.2, 1.3_
+- [x] 2. Authentification
+  - [x] 2.1 Configurer NextAuth.js v5 avec le provider Credentials et PrismaAdapter
+  - [x] 2.2 Implémenter l'inscription (`POST /api/auth/register`)
   - [ ]* 2.3 Écrire les property tests pour la validation du mot de passe
-    - **Property 1 : Password validation rejects non-compliant passwords**
-    - **Validates: Requirements 1.3**
-  - [ ] 2.4 Implémenter la réinitialisation de mot de passe
-    - `POST /api/auth/forgot-password` → token Redis TTL 1h → email
-    - `POST /api/auth/reset-password` → vérification token → update hash
-    - _Requirements: 1.5, 1.6_
-  - [ ] 2.5 Implémenter la suppression de compte (`DELETE /api/auth/account`)
-    - Suppression en cascade (User → Lists → ListCompanies)
-    - Résiliation abonnement Stripe si actif
-    - Email de confirmation
-    - _Requirements: 1.7_
+  - [x] 2.4 Implémenter la réinitialisation de mot de passe
+  - [x] 2.5 Implémenter la suppression de compte (`DELETE /api/auth/account`)
   - [ ]* 2.6 Écrire le property test pour la suppression de compte
-    - **Property 2 : Account deletion removes all user data**
-    - **Validates: Requirements 1.7**
-  - [ ] 2.7 Créer les pages UI d'authentification
+  - [x] 2.7 Créer les pages UI d'authentification
     - `/login`, `/register`, `/forgot-password`, `/reset-password`
-    - Formulaires avec react-hook-form + validation Zod côté client
-    - _Requirements: 1.1, 1.2, 1.4_
 
 - [ ] 3. Checkpoint — Auth fonctionnelle
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Moteur de recherche — backend
-  - [ ] 4.1 Implémenter `lib/sirene.ts` — wrapper API gouvernementale
-    - Fonction `searchCompanies(params)` avec appel API + transformation
-    - Fonction `transformCompany(raw)` : mapping ApiCompany → Company
-    - Constantes EFFECTIF_LABELS et FORME_JURIDIQUE_LABELS
-    - _Requirements: 2.1, 2.6_
-  - [ ] 4.2 Implémenter `lib/quota.ts` — Quota_Guard
-    - Fonctions `checkSearchQuota`, `incrementSearchCount`
-    - Fonctions `checkListQuota`, `checkCompanyQuota`
-    - Constante PLAN_LIMITS avec toutes les limites par plan
-    - _Requirements: 2.8, 2.9, 5.4, 5.5, 6.5, 7.3_
+- [x] 4. Moteur de recherche — backend
+  - [x] 4.1 Implémenter `lib/sirene.ts`
+  - [x] 4.2 Implémenter `lib/quota.ts`
   - [ ]* 4.3 Écrire les property tests pour le Quota_Guard
-    - **Property 6 : FREE plan quota enforcement**
-    - **Validates: Requirements 2.8, 2.9**
-  - [ ] 4.4 Implémenter le cache Redis pour les recherches
-    - Fonction `buildCacheKey(params)` avec hash SHA-256 normalisé
-    - Lookup/store dans Redis avec TTL 24h
-    - _Requirements: 2.7_
-  - [ ] 4.5 Implémenter `POST /api/search`
-    - Validation Zod du SearchSchema
-    - Pipeline : auth → quota → cache → API → transform → store cache → filter by plan
-    - Fallback local Sirene si API indisponible
-    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.8_
+  - [x] 4.4 Implémenter le cache Redis pour les recherches
+  - [x] 4.5 Implémenter `POST /api/search`
   - [ ]* 4.6 Écrire les property tests pour la logique de recherche
-    - **Property 3 : Search requires at least one NAF code**
-    - **Property 4 : NAF OR logic — union of results**
-    - **Property 5 : Combined filters produce a subset**
-    - **Validates: Requirements 2.2, 2.3, 2.5**
 
-- [ ] 5. Autocomplétion NAF et géographique
-  - [ ] 5.1 Créer `public/naf-codes.json` avec les ~700 codes NAF + synonymes
-    - _Requirements: 3.1, 3.2_
-  - [ ] 5.2 Implémenter `lib/naf.ts` — fonction `searchNaf(query)`
-    - Recherche dans labels et synonymes, retourne max 10 résultats
-    - _Requirements: 3.1, 3.2_
+- [x] 5. Autocomplétion NAF et géographique
+  - [x] 5.1 Créer `public/naf-codes.json`
+  - [x] 5.2 Implémenter `lib/naf.ts`
   - [ ]* 5.3 Écrire le property test pour l'autocomplétion NAF
-    - **Property 7 : NAF autocomplete result count**
-    - **Validates: Requirements 3.1**
-  - [ ] 5.4 Implémenter `GET /api/naf/autocomplete`
-    - _Requirements: 3.1_
-  - [ ] 5.5 Implémenter `lib/geo.ts` — résolution géographique
-    - Données géo statiques (communes, départements, régions)
-    - Fonctions `searchGeo(query)` et `resolveToApiParams(locations)`
-    - _Requirements: 3.3, 3.4_
+  - [x] 5.4 Implémenter `GET /api/naf/autocomplete`
+  - [x] 5.5 Implémenter `lib/geo.ts`
   - [ ]* 5.6 Écrire le property test pour la résolution géographique
-    - **Property (dérivée de 3.4) : Geographic resolution produces valid API params**
-    - **Validates: Requirements 3.4**
 
-- [ ] 6. Frontend — page de recherche et résultats
-  - [ ] 6.1 Créer le composant `SearchForm`
-    - Champs NAF (multi-select, max 5), localisation (max 3), effectif, dates, statut, formes juridiques
-    - Filtres avancés masqués par défaut
-    - _Requirements: 2.1, 2.2, 3.1, 3.3_
-  - [ ] 6.2 Créer les composants `NafAutocomplete` et `LocationAutocomplete`
-    - Debounce 150ms, navigation clavier, aria-live
-    - _Requirements: 3.1, 3.2, 3.3_
-  - [ ] 6.3 Créer le composant `CompanyCard`
-    - Affichage de toutes les données requises, badge statut, liens Pappers/Société.com
-    - Case à cocher de sélection
-    - _Requirements: 4.1_
-  - [ ] 6.4 Créer le composant `ResultsHeader` et `Pagination`
-    - Compteur de résultats, tri, compteur de sélection, boutons d'action
-    - Pagination 25/page, options 50/100 pour plans payants
-    - _Requirements: 4.2, 4.3, 4.4, 4.5_
-  - [ ] 6.5 Assembler la page `/search`
-    - Gestion du quota côté client (bandeau d'avertissement, modal d'upgrade)
-    - _Requirements: 2.8, 2.9, 4.1_
+- [x] 6. Frontend — page de recherche et résultats
+  - [x] 6.1 Créer le composant `SearchForm`
+  - [x] 6.2 Créer les composants `NafAutocomplete` et `LocationAutocomplete`
+  - [x] 6.3 Créer le composant `CompanyCard`
+  - [x] 6.4 Créer le composant `ResultsHeader` et `Pagination`
+  - [x] 6.5 Assembler la page `/search`
 
 - [ ] 7. Checkpoint — Recherche fonctionnelle end-to-end
   - Ensure all tests pass, ask the user if questions arise.

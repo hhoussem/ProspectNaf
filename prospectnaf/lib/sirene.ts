@@ -7,6 +7,17 @@ import type { SearchInput } from './validators/search'
 
 const API_BASE = 'https://recherche-entreprises.api.gouv.fr'
 
+/** Convert internal NAF format (6201Z) to API format (62.01Z) */
+function toApiNafCode(code: string): string {
+  // Already has a dot
+  if (code.includes('.')) return code
+  // 5-char format: 4 digits + 1 letter → insert dot after position 2
+  if (/^\d{4}[A-Z]$/.test(code)) {
+    return `${code.slice(0, 2)}.${code.slice(2)}`
+  }
+  return code
+}
+
 export interface SearchResult {
   total: number
   page: number
@@ -94,20 +105,22 @@ export function transformCompany(raw: ApiCompany): Company {
 async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   const url = new URL(`${API_BASE}/search`)
 
-  url.searchParams.set('activite_principale', params.nafCodes.join(','))
+  url.searchParams.set('activite_principale', params.nafCodes.map(toApiNafCode).join(','))
   url.searchParams.set('page', String(params.page))
   url.searchParams.set('per_page', String(Math.min(params.perPage, 25))) // API max = 25
 
   if (params.locations?.length) {
     // Simple heuristic: 2-digit = dept, 5-digit = postal code, else commune name
-    const depts = params.locations.filter((l) => /^\d{2,3}$/.test(l))
-    const communes = params.locations.filter((l) => !/^\d{2,3}$/.test(l))
+    const depts = params.locations.filter((l: string) => /^\d{2,3}$/.test(l))
+    const communes = params.locations.filter((l: string) => !/^\d{2,3}$/.test(l))
     if (depts.length) url.searchParams.set('departement', depts.join(','))
     if (communes.length) url.searchParams.set('commune', communes.join(','))
   }
 
   if (params.effectifs?.length) {
-    url.searchParams.set('tranche_effectif_salarie', params.effectifs.join(','))
+    // effectifs values may be comma-separated strings like "NN,00" or "01,02"
+    const codes = params.effectifs.flatMap((e: string) => e.split(','))
+    url.searchParams.set('tranche_effectif_salarie', codes.join(','))
   }
 
   if (params.dateFrom) {
@@ -125,7 +138,7 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
 
   const res = await fetch(url.toString(), {
     headers: { Accept: 'application/json' },
-    next: { revalidate: 0 },
+    cache: 'no-store',
   })
 
   if (!res.ok) {
@@ -154,7 +167,7 @@ async function searchLocalSirene(params: SearchInput): Promise<SearchResult> {
   else if (params.statut === 'FERME') where.isActive = false
 
   if (params.locations?.length) {
-    const depts = params.locations.filter((l) => /^\d{2,3}$/.test(l))
+    const depts = params.locations.filter((l: string) => /^\d{2,3}$/.test(l))
     if (depts.length) where.codeDept = { in: depts }
   }
 
@@ -168,7 +181,7 @@ async function searchLocalSirene(params: SearchInput): Promise<SearchResult> {
     prisma.sireneCompany.findMany({ where, skip, take: params.perPage }),
   ])
 
-  const results: Company[] = rows.map((r) => ({
+  const results: Company[] = rows.map((r: typeof rows[number]) => ({
     siren: r.siren,
     siretSiege: r.siretSiege,
     denomination: r.denomination,

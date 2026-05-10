@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db'
 import { redis, TTL } from '@/lib/redis'
 import { ForgotPasswordSchema } from '@/lib/validators/auth'
 import { apiError } from '@/lib/utils'
+import { sendEmail } from '@/lib/email'
+import ResetPassword from '@/emails/ResetPassword'
+import React from 'react'
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,8 +28,12 @@ export async function POST(req: NextRequest) {
     const token = createId()
     await redis.set(`reset:${token}`, user.id, { ex: TTL.RESET_TOKEN })
 
-    // TODO: send reset email (task 13)
-    // await sendEmail({ to: email, subject: 'Réinitialisation de mot de passe', template: <ResetPassword token={token} /> })
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`
+    await sendEmail({
+      to: email,
+      subject: 'Réinitialisation de ton mot de passe ProspectNAF',
+      template: React.createElement(ResetPassword, { resetUrl }),
+    }).catch((err) => console.error('[forgot-password] email error:', err))
 
     return Response.json({ ok: true })
   } catch (err) {

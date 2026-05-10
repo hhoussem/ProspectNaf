@@ -2,6 +2,9 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { stripe } from '@/lib/stripe'
 import { apiError } from '@/lib/utils'
+import { sendEmail } from '@/lib/email'
+import AccountDeleted from '@/emails/AccountDeleted'
+import React from 'react'
 
 export async function DELETE() {
   try {
@@ -12,7 +15,7 @@ export async function DELETE() {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { stripeSubId: true },
+      select: { stripeSubId: true, email: true },
     })
 
     // Cancel Stripe subscription if active
@@ -28,7 +31,13 @@ export async function DELETE() {
     // Cascade delete: User → Lists → ListCompanies (via Prisma onDelete: Cascade)
     await prisma.user.delete({ where: { id: session.user.id } })
 
-    // TODO: send account deleted confirmation email (task 13)
+    if (user?.email) {
+      await sendEmail({
+        to: user.email,
+        subject: 'Ton compte ProspectNAF a été supprimé',
+        template: React.createElement(AccountDeleted, { email: user.email }),
+      }).catch((err) => console.error('[delete-account] email error:', err))
+    }
 
     return Response.json({ ok: true })
   } catch (err) {

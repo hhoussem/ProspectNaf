@@ -16,7 +16,7 @@ export async function GET() {
   })
 
   return Response.json({
-    lists: lists.map((l) => ({
+    lists: lists.map((l: typeof lists[number]) => ({
       id: l.id,
       name: l.name,
       companyCount: l._count.companies,
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         companies: parsed.data.sirens?.length
           ? {
               createMany: {
-                data: parsed.data.sirens.map((siren) => ({ siren })),
+                data: parsed.data.sirens.map((siren: string) => ({ siren })),
                 skipDuplicates: true,
               },
             }

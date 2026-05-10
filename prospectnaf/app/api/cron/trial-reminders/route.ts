@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { addDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns'
+import { addDays, startOfDay, endOfDay } from 'date-fns'
+import { sendEmail } from '@/lib/email'
+import TrialReminder from '@/emails/TrialReminder'
+import React from 'react'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -37,6 +40,25 @@ export async function GET(req: NextRequest) {
   })
 
   // TODO: send reminder emails via Resend (task 13)
+  const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/account`
+
+  await Promise.allSettled([
+    ...usersExpiring3.map((u) =>
+      sendEmail({
+        to: u.email,
+        subject: 'Ton essai ProspectNAF se termine dans 3 jours',
+        template: React.createElement(TrialReminder, { daysLeft: 3, upgradeUrl }),
+      })
+    ),
+    ...usersExpiring1.map((u) =>
+      sendEmail({
+        to: u.email,
+        subject: 'Ton essai ProspectNAF se termine demain',
+        template: React.createElement(TrialReminder, { daysLeft: 1, upgradeUrl }),
+      })
+    ),
+  ])
+
   console.log(`[cron] trial-reminders: ${usersExpiring3.length} users expiring in 3 days, ${usersExpiring1.length} in 1 day`)
 
   return Response.json({

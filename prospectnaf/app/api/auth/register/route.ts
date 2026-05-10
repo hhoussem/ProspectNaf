@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
 import { RegisterSchema } from '@/lib/validators/auth'
 import { apiError } from '@/lib/utils'
+import { sendEmail } from '@/lib/email'
+import ConfirmEmail from '@/emails/ConfirmEmail'
+import React from 'react'
 
 const BCRYPT_ROUNDS = 12
 
@@ -30,6 +33,12 @@ export async function POST(req: NextRequest) {
     })
 
     // TODO: send confirmation email via Resend (task 13)
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/login`
+    await sendEmail({
+      to: email,
+      subject: 'Bienvenue sur ProspectNAF',
+      template: React.createElement(ConfirmEmail, { firstName, loginUrl }),
+    }).catch((err) => console.error('[register] email error:', err))
 
     return Response.json({ user }, { status: 201 })
   } catch (err) {
