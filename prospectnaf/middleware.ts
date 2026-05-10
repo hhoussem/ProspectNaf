@@ -3,8 +3,8 @@ import { auth } from '@/lib/auth'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/ratelimit'
 
 // Routes that require authentication
-const PROTECTED_PAGES = ['/search', '/lists', '/account']
-const PROTECTED_API = ['/api/search', '/api/lists', '/api/export', '/api/billing/checkout', '/api/auth/account']
+const PROTECTED_PAGES = ['/search', '/lists', '/account', '/companies']
+const PROTECTED_API = ['/api/search', '/api/lists', '/api/export', '/api/billing/checkout', '/api/auth/account', '/api/companies']
 
 // Rate limit groups per path prefix
 function getRateLimitGroup(pathname: string): keyof typeof RATE_LIMITS | null {
@@ -89,6 +89,7 @@ export const config = {
     '/search/:path*',
     '/lists/:path*',
     '/account/:path*',
+    '/companies/:path*',
     '/api/search',
     '/api/lists/:path*',
     '/api/export',
@@ -97,5 +98,6 @@ export const config = {
     '/api/auth/register',
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
+    '/api/companies/:path*',
   ],
 }

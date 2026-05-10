@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import type { Company } from '@/types/company'
 import { formatDate } from '@/lib/utils'
 
@@ -79,6 +80,12 @@ export default function CompanyCard({ company, showCheckbox, checked, onCheck }:
           </div>
 
           <div className="mt-3 flex items-center gap-3">
+            <Link
+              href={`/companies/${company.siren}`}
+              className="text-xs text-blue-600 hover:underline font-medium"
+            >
+              Voir le détail →
+            </Link>
             <a
               href={`https://www.pappers.fr/entreprise/${company.siren}`}
               target="_blank"

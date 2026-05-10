@@ -258,6 +258,12 @@ function CompanyRow({ company, canAnnotate, onAnnotate, onRemove }: CompanyRowPr
           <div className="flex items-center gap-2">
             {company.isPriority && <span className="text-orange-500 text-xs">★</span>}
             <p className="font-medium text-sm text-gray-900">SIREN : {company.siren}</p>
+            <Link
+              href={`/companies/${company.siren}`}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Voir le détail →
+            </Link>
             <a
               href={`https://www.pappers.fr/entreprise/${company.siren}`}
               target="_blank"
