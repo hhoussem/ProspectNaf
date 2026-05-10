@@ -120,15 +120,17 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   const url = new URL(`${API_BASE}/search`)
 
   url.searchParams.set('activite_principale', params.nafCodes.map(toApiNafCode).join(','))
-  url.searchParams.set('page', String(params.page))
-  url.searchParams.set('per_page', String(Math.min(params.perPage, 25)))
+  url.searchParams.set('per_page', '25') // API max = 25
 
-  if (params.locations?.length) {
-    const { depts, postalCodes, regions } = parseLocations(params.locations)
-    if (regions.length) url.searchParams.set('region', regions.join(','))
-    if (postalCodes.length) url.searchParams.set('code_postal', postalCodes.join(','))
-    if (depts.length) url.searchParams.set('departement', depts.join(','))
-  }
+  const { depts, postalCodes, regions } = params.locations?.length
+    ? parseLocations(params.locations)
+    : { depts: [], postalCodes: [], regions: [] }
+
+  const hasLocationFilter = depts.length > 0 || postalCodes.length > 0 || regions.length > 0
+
+  if (depts.length) url.searchParams.set('departement', depts.join(','))
+  if (postalCodes.length) url.searchParams.set('code_postal', postalCodes.join(','))
+  if (regions.length) url.searchParams.set('region', regions.join(','))
 
   if (params.effectifs?.length) {
     const codes = params.effectifs.flatMap((e: string) => e.split(','))
@@ -153,22 +155,48 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
     url.searchParams.set('categorie_juridique', codes.join(','))
   }
 
-  const res = await fetch(url.toString(), {
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-  })
+  // When a location filter is active, fetch multiple pages then post-filter strictly,
+  // because the API uses scoring (not strict filtering) for location params.
+  // 8 pages × 25 = 200 raw results → typically 80-140 after strict post-filter.
+  const pagesToFetch = hasLocationFilter ? 8 : 1
+  const allRaw: ApiCompany[] = []
+  let totalApi = 0
 
-  if (!res.ok) {
-    throw new ApiUnavailableError(`API gouvernementale returned ${res.status}`)
+  for (let p = 1; p <= pagesToFetch; p++) {
+    url.searchParams.set('page', String(p))
+    const res = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    })
+    if (!res.ok) throw new ApiUnavailableError(`API gouvernementale returned ${res.status}`)
+    const data: ApiResponse = await res.json()
+    totalApi = data.total_results
+    allRaw.push(...data.results)
+    if (data.results.length < 25) break // no more pages
   }
 
-  const data: ApiResponse = await res.json()
+  let transformed = allRaw.map(transformCompany)
+
+  // Strict post-filter: keep only results matching the requested location
+  if (hasLocationFilter) {
+    transformed = transformed.filter((c) => {
+      if (depts.length && c.departement != null && depts.includes(c.departement)) return true
+      if (postalCodes.length && c.codePostal != null && postalCodes.includes(c.codePostal)) return true
+      if (regions.length && c.region != null && regions.includes(c.region)) return true
+      return false
+    })
+  }
+
+  // Client-side pagination on filtered results
+  const perPage = params.perPage
+  const skip = (params.page - 1) * perPage
+  const pageResults = transformed.slice(skip, skip + perPage)
 
   return {
-    total: data.total_results,
-    page: data.page,
-    perPage: data.per_page,
-    results: data.results.map(transformCompany),
+    total: hasLocationFilter ? transformed.length : totalApi,
+    page: params.page,
+    perPage,
+    results: pageResults,
     source: 'api',
   }
 }
