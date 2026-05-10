@@ -9,9 +9,12 @@ interface Props {
   results: SearchResult
   plan: Plan
   onPageChange: (page: number) => void
+  selected?: Set<string>
+  onCheck?: (siren: string, checked: boolean) => void
+  onSelectAll?: () => void
 }
 
-export default function ResultsList({ results, plan, onPageChange }: Props) {
+export default function ResultsList({ results, plan, onPageChange, selected, onCheck, onSelectAll }: Props) {
   const { total, page, perPage, results: companies, source } = results
 
   return (
@@ -30,17 +33,33 @@ export default function ResultsList({ results, plan, onPageChange }: Props) {
             </span>
           )}
         </div>
-        {plan === 'FREE' && (
-          <p className="text-xs text-gray-500">
-            Plan gratuit — 20 résultats max.{' '}
-            <a href="/account" className="text-blue-600 hover:underline">Passer au plan Solo</a>
-          </p>
-        )}
+        <div className="flex items-center gap-3">
+          {onSelectAll && (
+            <button
+              onClick={onSelectAll}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Tout sélectionner
+            </button>
+          )}
+          {plan === 'FREE' && (
+            <p className="text-xs text-gray-500">
+              Plan gratuit — 20 résultats max.{' '}
+              <a href="/account" className="text-blue-600 hover:underline">Passer au plan Solo</a>
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3">
         {companies.map((company) => (
-          <CompanyCard key={company.siren} company={company} />
+          <CompanyCard
+            key={company.siren}
+            company={company}
+            showCheckbox={!!onCheck}
+            checked={selected?.has(company.siren) ?? false}
+            onCheck={onCheck}
+          />
         ))}
       </div>
 

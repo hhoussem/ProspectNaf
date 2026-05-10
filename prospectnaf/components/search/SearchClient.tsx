@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import SearchForm from './SearchForm'
 import ResultsList from '@/components/results/ResultsList'
+import SaveToListModal from '@/components/lists/SaveToListModal'
 import type { Plan } from '@/types/plan'
 import type { SearchInput } from '@/lib/validators/search'
 import type { SearchResult } from '@/lib/sirene'
@@ -17,6 +18,8 @@ export default function SearchClient({ plan, searchesToday }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastParams, setLastParams] = useState<SearchInput | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showSaveModal, setShowSaveModal] = useState(false)
 
   const planLimit = plan === 'FREE' ? 3 : null
   const nearLimit = planLimit !== null && searchesToday >= planLimit * 0.8
@@ -25,6 +28,7 @@ export default function SearchClient({ plan, searchesToday }: Props) {
     setLoading(true)
     setError(null)
     setLastParams(params)
+    setSelected(new Set())
 
     const res = await fetch('/api/search', {
       method: 'POST',
@@ -37,11 +41,11 @@ export default function SearchClient({ plan, searchesToday }: Props) {
     if (!res.ok) {
       const json = await res.json()
       if (res.status === 429) {
-        setError("Tu as atteint la limite de ton plan gratuit. Passe au plan Solo pour continuer.")
+        setError('Tu as atteint la limite de ton plan gratuit. Passe au plan Solo pour continuer.')
       } else if (res.status === 503) {
-        setError("Les données sont temporairement indisponibles. Réessaie dans quelques instants.")
+        setError('Les données sont temporairement indisponibles. Réessaie dans quelques instants.')
       } else {
-        setError(json.error?.message ?? "Une erreur est survenue.")
+        setError(json.error?.message ?? 'Une erreur est survenue.')
       }
       return
     }
@@ -55,46 +59,88 @@ export default function SearchClient({ plan, searchesToday }: Props) {
     await handleSearch({ ...lastParams, page })
   }
 
+  function handleCheck(siren: string, checked: boolean) {
+    setSelected((prev: Set<string>) => {
+      const next = new Set(prev)
+      if (checked) next.add(siren)
+      else next.delete(siren)
+      return next
+    })
+  }
+
+  function handleSelectAll() {
+    if (!results) return
+    const allSirens = results.results.map((c: { siren: string }) => c.siren)
+    setSelected(new Set(allSirens))
+  }
+
+  function handleDeselectAll() {
+    setSelected(new Set())
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">ProspectNAF</h1>
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          {planLimit !== null && (
-            <span className={nearLimit ? 'text-orange-600 font-medium' : ''}>
-              {searchesToday}/{planLimit} recherches aujourd&apos;hui
-            </span>
-          )}
-          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium uppercase">
-            {plan}
-          </span>
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      {nearLimit && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm text-orange-700">
+          Tu as utilisé {searchesToday}/{planLimit} recherches aujourd&apos;hui.{' '}
+          <a href="/account" className="underline font-medium">Passe au plan Solo</a> pour des recherches illimitées.
         </div>
-      </header>
+      )}
 
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        {nearLimit && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm text-orange-700">
-            Tu as utilisé {searchesToday}/{planLimit} recherches aujourd&apos;hui.{' '}
-            <a href="/account" className="underline font-medium">Passe au plan Solo</a> pour des recherches illimitées.
-          </div>
-        )}
+      <SearchForm onSearch={handleSearch} loading={loading} plan={plan} />
 
-        <SearchForm onSearch={handleSearch} loading={loading} plan={plan} />
+      {error && (
+        <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
-        {error && (
-          <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+      {results && (
+        <>
+          {/* Selection bar */}
+          {selected.size > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+              <span className="text-sm text-blue-700 font-medium">
+                {selected.size} entreprise{selected.size > 1 ? 's' : ''} sélectionnée{selected.size > 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDeselectAll}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Tout désélectionner
+                </button>
+                <button
+                  onClick={() => setShowSaveModal(true)}
+                  className="text-sm bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Sauvegarder dans une liste
+                </button>
+              </div>
+            </div>
+          )}
 
-        {results && (
           <ResultsList
             results={results}
             plan={plan}
             onPageChange={handlePageChange}
+            selected={selected}
+            onCheck={handleCheck}
+            onSelectAll={handleSelectAll}
           />
-        )}
-      </div>
+        </>
+      )}
+
+      {showSaveModal && (
+        <SaveToListModal
+          sirens={Array.from(selected)}
+          onClose={() => setShowSaveModal(false)}
+          onSaved={() => {
+            setShowSaveModal(false)
+            setSelected(new Set())
+          }}
+        />
+      )}
     </div>
   )
 }

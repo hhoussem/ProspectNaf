@@ -119,7 +119,7 @@ export default function ListDetailClient({ listId, plan }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <p className="text-gray-400 text-sm">Chargement...</p>
       </div>
     )
@@ -127,7 +127,7 @@ export default function ListDetailClient({ listId, plan }: Props) {
 
   if (!list) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="text-center space-y-2">
           <p className="text-gray-600">Liste introuvable.</p>
           <Link href="/lists" className="text-blue-600 hover:underline text-sm">Retour aux listes</Link>
@@ -137,7 +137,7 @@ export default function ListDetailClient({ listId, plan }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       <header className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

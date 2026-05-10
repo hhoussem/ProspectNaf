@@ -62,16 +62,7 @@ export default function AccountClient({ user }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Mon compte</h1>
-        <nav className="flex items-center gap-4 text-sm">
-          <a href="/search" className="text-gray-500 hover:text-gray-900">Recherche</a>
-          <a href="/lists" className="text-gray-500 hover:text-gray-900">Mes listes</a>
-        </nav>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {error && (
           <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
             {error}
@@ -183,6 +174,5 @@ export default function AccountClient({ user }: Props) {
           )}
         </section>
       </div>
-    </div>
   )
 }
