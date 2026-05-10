@@ -89,11 +89,11 @@ export default function SearchForm({ onSearch, loading, plan }: Props) {
           type="text"
           value={locationText}
           onChange={(e) => setLocationText(e.target.value)}
-          placeholder="75, 69, Paris, Rhône... (séparés par virgule)"
+          placeholder="75, 69, 75008... (codes département ou postal)"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <p className="text-xs text-gray-400 mt-1">
-          Code département (75), nom de département ou région. Laisse vide pour une recherche nationale.
+          Code département (ex: 75, 69) ou code postal (ex: 75008). Plusieurs valeurs séparées par virgule.
         </p>
       </div>
 

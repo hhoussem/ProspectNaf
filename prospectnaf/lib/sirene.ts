@@ -102,23 +102,33 @@ export function transformCompany(raw: ApiCompany): Company {
 
 // ─── API call ─────────────────────────────────────────────────────────────────
 
+/** Build location filters and return dept/postal arrays for post-filtering */
+function parseLocations(locations: string[]): {
+  depts: string[]
+  postalCodes: string[]
+} {
+  const normalized = locations.map((l: string) => l.trim()).filter(Boolean)
+  return {
+    postalCodes: normalized.filter((l: string) => /^\d{5}$/.test(l)),
+    depts: normalized.filter((l: string) => /^\d{2,3}$/.test(l)),
+  }
+}
+
 async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   const url = new URL(`${API_BASE}/search`)
 
   url.searchParams.set('activite_principale', params.nafCodes.map(toApiNafCode).join(','))
   url.searchParams.set('page', String(params.page))
-  url.searchParams.set('per_page', String(Math.min(params.perPage, 25))) // API max = 25
+  url.searchParams.set('per_page', '25') // API max = 25
 
   if (params.locations?.length) {
-    // Heuristic: 2-3 digits = department code, else treat as commune/city name
-    const depts = params.locations.filter((l: string) => /^\d{2,3}$/.test(l))
-    const communes = params.locations.filter((l: string) => !/^\d{2,3}$/.test(l))
+    const { depts, postalCodes } = parseLocations(params.locations)
+    // Send both as hints to the API (it uses them for scoring)
+    if (postalCodes.length) url.searchParams.set('code_postal', postalCodes.join(','))
     if (depts.length) url.searchParams.set('departement', depts.join(','))
-    if (communes.length) url.searchParams.set('commune', communes.join(','))
   }
 
   if (params.effectifs?.length) {
-    // effectifs values may be comma-separated strings like "NN,00" or "01,02"
     const codes = params.effectifs.flatMap((e: string) => e.split(','))
     url.searchParams.set('tranche_effectif_salarie', codes.join(','))
   }
@@ -137,7 +147,6 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   else if (params.statut === 'FERME') url.searchParams.set('etat_administratif', 'F')
 
   if (params.formes?.length) {
-    // formes values may be comma-separated codes like "5710,5720"
     const codes = params.formes.flatMap((f: string) => f.split(','))
     url.searchParams.set('categorie_juridique', codes.join(','))
   }
@@ -152,12 +161,25 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   }
 
   const data: ApiResponse = await res.json()
+  let results = data.results.map(transformCompany)
+
+  // Post-filter by location if specified (API scoring is not strict)
+  if (params.locations?.length) {
+    const { depts, postalCodes } = parseLocations(params.locations)
+    if (depts.length || postalCodes.length) {
+      results = results.filter((c) => {
+        const matchesDept = depts.length === 0 || (c.departement != null && depts.includes(c.departement))
+        const matchesPostal = postalCodes.length === 0 || (c.codePostal != null && postalCodes.some((cp) => c.codePostal!.startsWith(cp.slice(0, 2))))
+        return matchesDept || matchesPostal
+      })
+    }
+  }
 
   return {
     total: data.total_results,
     page: data.page,
     perPage: data.per_page,
-    results: data.results.map(transformCompany),
+    results,
     source: 'api',
   }
 }
