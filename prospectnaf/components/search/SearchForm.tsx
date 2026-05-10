@@ -51,6 +51,7 @@ export default function SearchForm({ onSearch, loading, plan }: Props) {
     const locations = geoItems.map((g: GeoSuggestion) => {
       if (g.type === 'departement') return g.code
       if (g.type === 'region') return `R:${g.code}`
+      if (g.type === 'codepostal') return g.code  // 5-digit postal code
       // commune: use its dept code for filtering
       return g.deptCode ?? g.code.slice(0, 2)
     }).filter(Boolean)

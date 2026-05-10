@@ -7,12 +7,14 @@ const TYPE_ICONS: Record<GeoSuggestion['type'], string> = {
   region: '🗺',
   departement: '📍',
   commune: '🏙',
+  codepostal: '📮',
 }
 
 const TYPE_LABELS: Record<GeoSuggestion['type'], string> = {
   region: 'Région',
   departement: 'Département',
   commune: 'Commune',
+  codepostal: 'Code postal',
 }
 
 interface Props {
@@ -85,7 +87,7 @@ export default function LocationAutocomplete({ selected, onChange, maxItems = 3 
             onChange={(e) => handleInput(e.target.value)}
             onFocus={() => query.length >= 2 && setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
-            placeholder={selected.length === 0 ? 'Lyon, Rhône, Île-de-France...' : ''}
+            placeholder={selected.length === 0 ? 'Lyon, 69, 75008, Île-de-France...' : ''}
             className="flex-1 min-w-[140px] text-sm outline-none bg-transparent"
             aria-label="Rechercher une localisation"
             aria-autocomplete="list"
