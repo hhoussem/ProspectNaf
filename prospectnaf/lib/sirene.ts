@@ -110,7 +110,7 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   url.searchParams.set('per_page', String(Math.min(params.perPage, 25))) // API max = 25
 
   if (params.locations?.length) {
-    // Simple heuristic: 2-digit = dept, 5-digit = postal code, else commune name
+    // Heuristic: 2-3 digits = department code, else treat as commune/city name
     const depts = params.locations.filter((l: string) => /^\d{2,3}$/.test(l))
     const communes = params.locations.filter((l: string) => !/^\d{2,3}$/.test(l))
     if (depts.length) url.searchParams.set('departement', depts.join(','))
@@ -135,6 +135,12 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
 
   if (params.statut === 'ACTIF') url.searchParams.set('etat_administratif', 'A')
   else if (params.statut === 'FERME') url.searchParams.set('etat_administratif', 'F')
+
+  if (params.formes?.length) {
+    // formes values may be comma-separated codes like "5710,5720"
+    const codes = params.formes.flatMap((f: string) => f.split(','))
+    url.searchParams.set('categorie_juridique', codes.join(','))
+  }
 
   const res = await fetch(url.toString(), {
     headers: { Accept: 'application/json' },
