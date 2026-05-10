@@ -1,8 +1,22 @@
 import { Redis } from '@upstash/redis'
 
-export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+// Lazy singleton — avoids crash at module load when env vars are placeholders
+let _redis: Redis | null = null
+
+function getRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
+  }
+  return _redis
+}
+
+export const redis = new Proxy({} as Redis, {
+  get(_target, prop) {
+    return (getRedis() as unknown as Record<string | symbol, unknown>)[prop]
+  },
 })
 
 // TTL constants (seconds)

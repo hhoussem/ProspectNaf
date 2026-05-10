@@ -1,5 +1,6 @@
-// NAF autocomplete — filtered in-memory from static JSON
-// The full naf-codes.json is loaded once at module level
+// NAF autocomplete — two variants:
+// - searchNafSync: client-side, works with pre-loaded data array
+// - searchNaf: server-side only (API route)
 
 export interface NafEntry {
   code: string
@@ -7,49 +8,29 @@ export interface NafEntry {
   synonyms: string[]
 }
 
-// Lazy-loaded from public/naf-codes.json at runtime
-let _nafData: NafEntry[] | null = null
-
-async function getNafData(): Promise<NafEntry[]> {
-  if (_nafData) return _nafData
-  // In Next.js API routes, we read from the filesystem
-  const { readFileSync } = await import('fs')
-  const { join } = await import('path')
-  const filePath = join(process.cwd(), 'public', 'naf-codes.json')
-  _nafData = JSON.parse(readFileSync(filePath, 'utf-8')) as NafEntry[]
-  return _nafData
+function normalize(s: string) {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-export async function searchNaf(query: string): Promise<NafEntry[]> {
-  if (query.length < 2) return []
-  const data = await getNafData()
-  const q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-
-  return data
-    .filter((entry) => {
-      const label = entry.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      const code = entry.code.toLowerCase()
-      const synonymMatch = entry.synonyms.some((s) =>
-        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q)
-      )
-      return label.includes(q) || code.includes(q) || synonymMatch
-    })
-    .slice(0, 10)
-}
-
-/** Client-side version — works with pre-loaded data array */
+/** Client-side — works with pre-loaded data array (no fs dependency) */
 export function searchNafSync(query: string, data: NafEntry[]): NafEntry[] {
   if (query.length < 2) return []
-  const q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const q = normalize(query)
 
   return data
     .filter((entry) => {
-      const label = entry.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const label = normalize(entry.label)
       const code = entry.code.toLowerCase()
-      const synonymMatch = entry.synonyms.some((s) =>
-        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q)
-      )
+      const synonymMatch = entry.synonyms.some((s) => normalize(s).includes(q))
       return label.includes(q) || code.includes(q) || synonymMatch
     })
     .slice(0, 10)
+}
+
+/** Server-side — used by /api/naf/autocomplete route only */
+export async function searchNaf(query: string): Promise<NafEntry[]> {
+  if (query.length < 2) return []
+  // Import the static JSON directly — no fs needed, works in both server and edge
+  const { default: data } = await import('@/public/naf-codes.json')
+  return searchNafSync(query, data as NafEntry[])
 }

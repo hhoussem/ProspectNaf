@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { SearchSchema, type SearchInput } from '@/lib/validators/search'
 import NafAutocomplete from './NafAutocomplete'
@@ -24,15 +24,22 @@ interface Props {
 
 export default function SearchForm({ onSearch, loading, plan }: Props) {
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [nafCodes, setNafCodes] = useState<{ code: string; label: string }[]>([])
+  // nafItems holds the display objects; the form field nafCodes holds the string codes
+  const [nafItems, setNafItems] = useState<{ code: string; label: string }[]>([])
 
-  const { register, handleSubmit, control, formState: { errors } } = useForm<SearchInput>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<SearchInput>({
     resolver: zodResolver(SearchSchema),
-    defaultValues: { statut: 'ACTIF', page: 1, perPage: 25 },
+    defaultValues: { nafCodes: [], statut: 'ACTIF', page: 1, perPage: 25 },
   })
 
+  function handleNafChange(items: { code: string; label: string }[]) {
+    setNafItems(items)
+    // Keep react-hook-form in sync so Zod validation sees the codes
+    setValue('nafCodes', items.map((n) => n.code), { shouldValidate: true })
+  }
+
   function onSubmit(data: SearchInput) {
-    onSearch({ ...data, nafCodes: nafCodes.map((n) => n.code) })
+    onSearch(data)
   }
 
   return (
@@ -40,13 +47,16 @@ export default function SearchForm({ onSearch, loading, plan }: Props) {
       onSubmit={handleSubmit(onSubmit)}
       className="bg-white rounded-xl border shadow-sm p-6 space-y-5"
     >
+      {/* Hidden input so react-hook-form registers nafCodes */}
+      <input type="hidden" {...register('nafCodes')} />
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Secteur d&apos;activité <span className="text-red-500">*</span>
         </label>
         <NafAutocomplete
-          selected={nafCodes}
-          onChange={setNafCodes}
+          selected={nafItems}
+          onChange={handleNafChange}
           maxItems={5}
         />
         {errors.nafCodes && (
@@ -163,7 +173,7 @@ export default function SearchForm({ onSearch, loading, plan }: Props) {
 
       <button
         type="submit"
-        disabled={loading || nafCodes.length === 0}
+        disabled={loading || nafItems.length === 0}
         className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
       >
         {loading ? 'Recherche en cours...' : 'Rechercher'}

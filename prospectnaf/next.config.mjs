@@ -1,4 +1,4 @@
-import type { NextConfig } from 'next'
+/** @type {import('next').NextConfig} */
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -19,9 +19,16 @@ const securityHeaders = [
   },
 ]
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
+  },
+  webpack(config) {
+    // Allow importing JSON files from anywhere in the project
+    config.resolve.extensionAlias = {
+      ...config.resolve.extensionAlias,
+    }
+    return config
   },
 }
 
