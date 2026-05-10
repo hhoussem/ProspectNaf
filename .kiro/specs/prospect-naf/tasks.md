@@ -6,7 +6,7 @@ Implémentation du MVP ProspectNAF en Next.js 14 (App Router) + TypeScript + Pri
 
 ## Tasks
 
-- [-] 1. Initialisation du projet et infrastructure de base
+- [x] 1. Initialisation du projet et infrastructure de base
   - Créer le projet Next.js 14 avec TypeScript, Tailwind CSS, shadcn/ui
   - Configurer Prisma avec le schéma complet (User, List, ListCompany, SireneCompany)
   - Configurer le client Redis (Upstash)
