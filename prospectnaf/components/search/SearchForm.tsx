@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { SearchSchema, type SearchInput } from '@/lib/validators/search'
 import NafAutocomplete from './NafAutocomplete'
+import LocationAutocomplete from './LocationAutocomplete'
+import type { GeoSuggestion } from '@/app/api/geo/autocomplete/route'
 import type { Plan } from '@/types/plan'
 
 const EFFECTIF_OPTIONS = [
@@ -29,8 +31,7 @@ interface Props {
 export default function SearchForm({ onSearch, loading, plan }: Props) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [nafItems, setNafItems] = useState<{ code: string; label: string }[]>([])
-  // Location as free text, split on comma/semicolon
-  const [locationText, setLocationText] = useState('')
+  const [geoItems, setGeoItems] = useState<GeoSuggestion[]>([])
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<SearchInput>({
     resolver: zodResolver(SearchSchema),
@@ -43,13 +44,17 @@ export default function SearchForm({ onSearch, loading, plan }: Props) {
   }
 
   function onSubmit(data: SearchInput) {
-    // Parse location text into array, filter empty strings
-    const locations = locationText
-      .split(/[,;]/)
-      .map((s) => s.trim())
-      .filter(Boolean)
+    // Convert geo selections to location codes for the API
+    // - departement → dept code (e.g. "69")
+    // - region → region code (e.g. "11") — stored as "R:11" to distinguish from dept
+    // - commune → dept code of the commune (best proxy for strict filtering)
+    const locations = geoItems.map((g: GeoSuggestion) => {
+      if (g.type === 'departement') return g.code
+      if (g.type === 'region') return `R:${g.code}`
+      // commune: use its dept code for filtering
+      return g.deptCode ?? g.code.slice(0, 2)
+    }).filter(Boolean)
 
-    // Strip empty date strings
     const cleaned: SearchInput = {
       ...data,
       locations: locations.length ? locations : undefined,
@@ -81,19 +86,16 @@ export default function SearchForm({ onSearch, loading, plan }: Props) {
 
       {/* Localisation */}
       <div>
-        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
           Localisation <span className="text-gray-400 font-normal">(optionnel)</span>
         </label>
-        <input
-          id="location"
-          type="text"
-          value={locationText}
-          onChange={(e) => setLocationText(e.target.value)}
-          placeholder="75, 69, 75008... (codes département ou postal)"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <LocationAutocomplete
+          selected={geoItems}
+          onChange={setGeoItems}
+          maxItems={3}
         />
         <p className="text-xs text-gray-400 mt-1">
-          Code département (ex: 75, 69) ou code postal (ex: 75008). Plusieurs valeurs séparées par virgule.
+          Commune, département ou région — max 3 zones
         </p>
       </div>
 

@@ -106,9 +106,11 @@ export function transformCompany(raw: ApiCompany): Company {
 function parseLocations(locations: string[]): {
   depts: string[]
   postalCodes: string[]
+  regions: string[]
 } {
   const normalized = locations.map((l: string) => l.trim()).filter(Boolean)
   return {
+    regions: normalized.filter((l: string) => l.startsWith('R:')).map((l: string) => l.slice(2)),
     postalCodes: normalized.filter((l: string) => /^\d{5}$/.test(l)),
     depts: normalized.filter((l: string) => /^\d{2,3}$/.test(l)),
   }
@@ -122,8 +124,8 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   url.searchParams.set('per_page', '25') // API max = 25
 
   if (params.locations?.length) {
-    const { depts, postalCodes } = parseLocations(params.locations)
-    // Send both as hints to the API (it uses them for scoring)
+    const { depts, postalCodes, regions } = parseLocations(params.locations)
+    if (regions.length) url.searchParams.set('region', regions.join(','))
     if (postalCodes.length) url.searchParams.set('code_postal', postalCodes.join(','))
     if (depts.length) url.searchParams.set('departement', depts.join(','))
   }
@@ -165,12 +167,13 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
 
   // Post-filter by location if specified (API scoring is not strict)
   if (params.locations?.length) {
-    const { depts, postalCodes } = parseLocations(params.locations)
-    if (depts.length || postalCodes.length) {
+    const { depts, postalCodes, regions } = parseLocations(params.locations)
+    if (depts.length || postalCodes.length || regions.length) {
       results = results.filter((c) => {
         const matchesDept = depts.length === 0 || (c.departement != null && depts.includes(c.departement))
         const matchesPostal = postalCodes.length === 0 || (c.codePostal != null && postalCodes.some((cp) => c.codePostal!.startsWith(cp.slice(0, 2))))
-        return matchesDept || matchesPostal
+        const matchesRegion = regions.length === 0 || (c.region != null && regions.includes(c.region))
+        return matchesDept || matchesPostal || matchesRegion
       })
     }
   }
