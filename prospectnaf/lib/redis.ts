@@ -1,23 +1,17 @@
 import { Redis } from '@upstash/redis'
 
-// Lazy singleton — avoids crash at module load when env vars are placeholders
-let _redis: Redis | null = null
+const url = process.env.UPSTASH_REDIS_REST_URL ?? ''
+const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? ''
 
-function getRedis(): Redis {
-  if (!_redis) {
-    _redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    })
-  }
-  return _redis
-}
+// Redis is considered available only when real credentials are provided
+export const REDIS_AVAILABLE =
+  url.startsWith('https://') &&
+  !url.includes('fake') &&
+  token.length > 10
 
-export const redis = new Proxy({} as Redis, {
-  get(_target, prop) {
-    return (getRedis() as unknown as Record<string | symbol, unknown>)[prop]
-  },
-})
+export const redis = REDIS_AVAILABLE
+  ? new Redis({ url, token })
+  : null as unknown as Redis
 
 // TTL constants (seconds)
 export const TTL = {

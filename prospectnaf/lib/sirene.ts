@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { redis, TTL } from './redis'
+import { redis, TTL, REDIS_AVAILABLE } from './redis'
 import { prisma } from './db'
 import type { Company } from '@/types/company'
 import { EFFECTIF_LABELS, FORME_JURIDIQUE_LABELS } from '@/types/company'
@@ -196,7 +196,7 @@ export async function searchCompanies(params: SearchInput): Promise<SearchResult
   const cacheKey = buildCacheKey(params)
 
   // Cache lookup
-  const cached = await redis.get<SearchResult>(cacheKey)
+  const cached = REDIS_AVAILABLE ? await redis.get<SearchResult>(cacheKey) : null
   if (cached) return { ...cached, source: 'cache' }
 
   let result: SearchResult
@@ -211,7 +211,7 @@ export async function searchCompanies(params: SearchInput): Promise<SearchResult
   }
 
   // Store in cache (only API results, not local fallback)
-  if (result.source === 'api') {
+  if (result.source === 'api' && REDIS_AVAILABLE) {
     await redis.set(cacheKey, result, { ex: TTL.SEARCH_CACHE })
   }
 

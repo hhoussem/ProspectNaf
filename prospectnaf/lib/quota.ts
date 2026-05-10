@@ -1,4 +1,4 @@
-import { redis, TTL } from './redis'
+import { redis, TTL, REDIS_AVAILABLE } from './redis'
 import type { Plan } from '@/types/plan'
 
 export interface QuotaPlan {
@@ -47,6 +47,7 @@ function todayKey(userId: string): string {
 }
 
 export async function getSearchCount(userId: string): Promise<number> {
+  if (!REDIS_AVAILABLE) return 0
   const count = await redis.get<number>(todayKey(userId))
   return count ?? 0
 }
@@ -54,6 +55,7 @@ export async function getSearchCount(userId: string): Promise<number> {
 export async function checkSearchQuota(userId: string, plan: Plan): Promise<void> {
   const limits = PLAN_LIMITS[plan]
   if (limits.searchesPerDay === null) return // unlimited
+  if (!REDIS_AVAILABLE) return // skip quota check in dev without Redis
 
   const count = await getSearchCount(userId)
   if (count >= limits.searchesPerDay) {
@@ -62,6 +64,7 @@ export async function checkSearchQuota(userId: string, plan: Plan): Promise<void
 }
 
 export async function incrementSearchCount(userId: string): Promise<void> {
+  if (!REDIS_AVAILABLE) return
   const key = todayKey(userId)
   await redis.incr(key)
   await redis.expire(key, TTL.QUOTA)
