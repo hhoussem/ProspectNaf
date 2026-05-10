@@ -13,13 +13,14 @@ interface Props {
   searchesToday: number
 }
 
-export default function SearchClient({ plan, searchesToday }: Props) {
+export default function SearchClient({ plan, searchesToday: initialSearchesToDay }: Props) {
   const [results, setResults] = useState<SearchResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastParams, setLastParams] = useState<SearchInput | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [searchesToday, setSearchesToday] = useState(initialSearchesToDay)
 
   const planLimit = plan === 'FREE' ? 3 : null
   const nearLimit = planLimit !== null && searchesToday >= planLimit * 0.8
@@ -50,8 +51,11 @@ export default function SearchClient({ plan, searchesToday }: Props) {
       return
     }
 
-    const data: SearchResult = await res.json()
+    const data: SearchResult & { searchesToday?: number } = await res.json()
     setResults(data)
+    if (data.searchesToday !== undefined) {
+      setSearchesToday(data.searchesToday)
+    }
   }
 
   async function handlePageChange(page: number) {
@@ -84,6 +88,12 @@ export default function SearchClient({ plan, searchesToday }: Props) {
         <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm text-orange-700">
           Tu as utilisé {searchesToday}/{planLimit} recherches aujourd&apos;hui.{' '}
           <a href="/account" className="underline font-medium">Passe au plan Solo</a> pour des recherches illimitées.
+        </div>
+      )}
+
+      {planLimit !== null && (
+        <div className="text-xs text-gray-500 text-right">
+          {searchesToday}/{planLimit} recherches aujourd&apos;hui
         </div>
       )}
 

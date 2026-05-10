@@ -13,10 +13,9 @@ const PLAN_BADGE: Record<Plan, string> = {
 
 interface Props {
   plan: Plan
-  searchesToday?: number
 }
 
-export default function Navbar({ plan, searchesToday }: Props) {
+export default function Navbar({ plan }: Props) {
   const pathname = usePathname()
 
   const links = [
@@ -58,11 +57,6 @@ export default function Navbar({ plan, searchesToday }: Props) {
 
         {/* Right side */}
         <div className="flex items-center gap-3 shrink-0">
-          {planLimit !== null && searchesToday !== undefined && (
-            <span className="text-xs text-gray-500 hidden sm:block">
-              {searchesToday}/{planLimit} recherches
-            </span>
-          )}
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${PLAN_BADGE[plan]}`}>
             {plan}
           </span>

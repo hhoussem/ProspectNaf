@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { searchCompanies } from '@/lib/sirene'
-import { checkSearchQuota, incrementSearchCount, PLAN_LIMITS, QuotaError } from '@/lib/quota'
+import { checkSearchQuota, incrementSearchCount, getSearchCount, PLAN_LIMITS, QuotaError } from '@/lib/quota'
 import { SearchSchema } from '@/lib/validators/search'
 import { apiError } from '@/lib/utils'
 import type { Plan } from '@/types/plan'
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
 
     // Increment counter after successful search
     await incrementSearchCount(session.user.id)
+    const searchesToday = await getSearchCount(session.user.id)
 
     // Apply plan result limit
     const limits = PLAN_LIMITS[plan]
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
       result.total = Math.min(result.total, limits.resultsPerSearch)
     }
 
-    return Response.json(result)
+    return Response.json({ ...result, searchesToday })
   } catch (err) {
     if (err instanceof QuotaError) {
       const status = err.code === 'QUOTA_EXCEEDED' ? 429 : 403

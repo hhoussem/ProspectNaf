@@ -8,7 +8,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar plan={session.user.plan} searchesToday={session.user.searchesToday} />
+      <Navbar plan={session.user.plan} />
       <main>{children}</main>
     </div>
   )
