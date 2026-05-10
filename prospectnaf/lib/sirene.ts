@@ -120,7 +120,6 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
   const url = new URL(`${API_BASE}/search`)
 
   url.searchParams.set('activite_principale', params.nafCodes.map(toApiNafCode).join(','))
-  url.searchParams.set('page', String(params.page))
   url.searchParams.set('per_page', '25') // API max = 25
 
   if (params.locations?.length) {
@@ -153,36 +152,59 @@ async function callGouvernementAPI(params: SearchInput): Promise<SearchResult> {
     url.searchParams.set('categorie_juridique', codes.join(','))
   }
 
-  const res = await fetch(url.toString(), {
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-  })
+  const hasLocationFilter = (params.locations?.length ?? 0) > 0
 
-  if (!res.ok) {
-    throw new ApiUnavailableError(`API gouvernementale returned ${res.status}`)
+  // When location filter is active, fetch multiple pages to compensate for
+  // the API's non-strict scoring — we need enough raw results to post-filter
+  const pagesToFetch = hasLocationFilter ? 4 : 1
+  const targetPage = params.page
+
+  const allRaw: ApiCompany[] = []
+  let totalResults = 0
+  let lastPage = 1
+  let lastPerPage = 25
+
+  for (let p = 1; p <= pagesToFetch; p++) {
+    url.searchParams.set('page', String(p))
+    const res = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    })
+    if (!res.ok) throw new ApiUnavailableError(`API gouvernementale returned ${res.status}`)
+    const data: ApiResponse = await res.json()
+    totalResults = data.total_results
+    lastPage = data.page
+    lastPerPage = data.per_page
+    allRaw.push(...data.results)
+    // Stop early if we've fetched all available results
+    if (data.results.length < 25) break
   }
 
-  const data: ApiResponse = await res.json()
-  let results = data.results.map(transformCompany)
+  let results = allRaw.map(transformCompany)
 
   // Post-filter by location if specified (API scoring is not strict)
-  if (params.locations?.length) {
-    const { depts, postalCodes, regions } = parseLocations(params.locations)
+  if (hasLocationFilter) {
+    const { depts, postalCodes, regions } = parseLocations(params.locations!)
     if (depts.length || postalCodes.length || regions.length) {
       results = results.filter((c) => {
-        const matchesDept = depts.length === 0 || (c.departement != null && depts.includes(c.departement))
-        const matchesPostal = postalCodes.length === 0 || (c.codePostal != null && postalCodes.some((cp) => c.codePostal!.startsWith(cp.slice(0, 2))))
-        const matchesRegion = regions.length === 0 || (c.region != null && regions.includes(c.region))
-        return matchesDept || matchesPostal || matchesRegion
+        if (depts.length && c.departement != null && depts.includes(c.departement)) return true
+        if (postalCodes.length && c.codePostal != null && postalCodes.includes(c.codePostal)) return true
+        if (regions.length && c.region != null && regions.includes(c.region)) return true
+        return false
       })
     }
   }
 
+  // Apply pagination on the filtered results
+  const perPage = params.perPage
+  const skip = (targetPage - 1) * perPage
+  const paginated = results.slice(skip, skip + perPage)
+
   return {
-    total: data.total_results,
-    page: data.page,
-    perPage: data.per_page,
-    results,
+    total: hasLocationFilter ? results.length : totalResults,
+    page: targetPage,
+    perPage,
+    results: paginated,
     source: 'api',
   }
 }
